@@ -122,7 +122,7 @@ class DeadCodeAnalyzerTest {
     }
 
     @Test
-    fun `compile time constants and serialization ids are not reported dead`() {
+    fun `compile time constants and serialization ids are configurable`() {
         val projectDirectory = Files.createTempDirectory("dead-code-analyzer-test").toFile()
         try {
             val project = ProjectBuilder.builder().withProjectDir(projectDirectory).build()
@@ -139,10 +139,12 @@ class DeadCodeAnalyzerTest {
                 "sample/SerializableValue",
                 "serialVersionUID",
                 "J",
-                access = java.lang.reflect.Modifier.PRIVATE or java.lang.reflect.Modifier.STATIC
+                access = java.lang.reflect.Modifier.PRIVATE or
+                    java.lang.reflect.Modifier.STATIC or
+                    java.lang.reflect.Modifier.FINAL
             )
             val ordinaryField = FieldRef("sample/Unused", "value", "Ljava/lang/Object;")
-            val analysis = DeadCodeAnalyzer(project, DeadCodeDetectorExtension()).analyze(
+            val defaultAnalysis = DeadCodeAnalyzer(project, DeadCodeDetectorExtension()).analyze(
                 ClassScanModel(
                     declaredMethods = emptySet(),
                     declaredFields = setOf(constant, serialVersionUid, ordinaryField),
@@ -155,9 +157,28 @@ class DeadCodeAnalyzerTest {
                 ResourceModel(emptySet(), emptySet())
             )
 
-            assertTrue(ordinaryField in analysis.deadFields)
-            assertTrue(constant !in analysis.deadFields)
-            assertTrue(serialVersionUid !in analysis.deadFields)
+            assertTrue(ordinaryField in defaultAnalysis.deadFields)
+            assertTrue(constant in defaultAnalysis.deadFields)
+            assertTrue(serialVersionUid in defaultAnalysis.deadFields)
+
+            val extension = DeadCodeDetectorExtension()
+            extension.excludeConstants = true
+            val excludedAnalysis = DeadCodeAnalyzer(project, extension).analyze(
+                ClassScanModel(
+                    declaredMethods = emptySet(),
+                    declaredFields = setOf(constant, serialVersionUid, ordinaryField),
+                    declaredClasses = emptySet(),
+                    classAnnotations = emptyMap(),
+                    referencedMethods = emptySet(),
+                    referencedFields = emptySet(),
+                    referencedClasses = emptySet()
+                ),
+                ResourceModel(emptySet(), emptySet())
+            )
+
+            assertTrue(ordinaryField in excludedAnalysis.deadFields)
+            assertTrue(constant !in excludedAnalysis.deadFields)
+            assertTrue(serialVersionUid !in excludedAnalysis.deadFields)
         } finally {
             projectDirectory.deleteRecursively()
         }

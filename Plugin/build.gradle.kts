@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "io.github.arya458"
-version = "0.0.11-klcodanr.2"
+version = "0.0.11-klcodanr.3"
 
 repositories {
     mavenCentral()

@@ -80,12 +80,9 @@ class DeadCodeAnalyzer(
 
         val deadFields = declaredFields.filter { field ->
             if ((field.access and (Opcodes.ACC_SYNTHETIC or Opcodes.ACC_BRIDGE)) != 0) return@filter false
-            if (field.compileTimeConstant &&
-                (field.access and (Opcodes.ACC_STATIC or Opcodes.ACC_FINAL)) ==
-                    (Opcodes.ACC_STATIC or Opcodes.ACC_FINAL)) {
+            if (extension.excludeConstants && isConstantField(field)) {
                 return@filter false
             }
-            if (field.name == "serialVersionUID" && field.desc == "J") return@filter false
             if (extension.keepPublicApi && (field.access and Opcodes.ACC_PUBLIC) != 0) return@filter false
             if (extension.excludeFields.any { it.matcher(field.name).matches() }) return@filter false
             if (hasKeepAnnotation(field.annotations)) return@filter false
@@ -224,6 +221,12 @@ class DeadCodeAnalyzer(
             is String -> className.startsWith(rule)
             else -> false
         }
+    }
+
+    private fun isConstantField(field: FieldRef): Boolean {
+        return (field.access and (Opcodes.ACC_STATIC or Opcodes.ACC_FINAL)) ==
+                (Opcodes.ACC_STATIC or Opcodes.ACC_FINAL) &&
+                (field.compileTimeConstant || (field.name == "serialVersionUID" && field.desc == "J"))
     }
 
     private fun matchesRule(rule: Any, value: String): Boolean {

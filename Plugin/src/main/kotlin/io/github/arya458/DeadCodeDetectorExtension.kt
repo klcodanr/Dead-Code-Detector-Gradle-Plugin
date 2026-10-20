@@ -8,6 +8,7 @@ open class DeadCodeDetectorExtension {
     var failOnDeadCode: Boolean = false
     var includeTests: Boolean = false
     var keepPublicApi: Boolean = true
+    var excludeConstants: Boolean = false
 
     // Platform detection
     var platform: String = "auto"

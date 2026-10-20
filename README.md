@@ -100,6 +100,9 @@ deadCodeDetector {
     // Keep public API
     keepPublicApi = true
 
+    // Ignore unused compile-time constants and serialVersionUID fields
+    excludeConstants = false
+
     // auto | android | spring | kmm
     platform = "auto"
 
