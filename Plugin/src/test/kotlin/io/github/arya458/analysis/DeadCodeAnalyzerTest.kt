@@ -89,4 +89,35 @@ class DeadCodeAnalyzerTest {
             projectDirectory.deleteRecursively()
         }
     }
+
+    @Test
+    fun `external framework overrides are not reported dead`() {
+        val projectDirectory = Files.createTempDirectory("dead-code-analyzer-test").toFile()
+        try {
+            val project = ProjectBuilder.builder().withProjectDir(projectDirectory).build()
+            val paintComponent = MethodRef(
+                "sample/StatusDot",
+                "paintComponent",
+                "(Ljava/awt/Graphics;)V",
+                access = 4
+            )
+            val analysis = DeadCodeAnalyzer(project, DeadCodeDetectorExtension()).analyze(
+                ClassScanModel(
+                    declaredMethods = setOf(paintComponent),
+                    declaredFields = emptySet(),
+                    declaredClasses = setOf("sample/StatusDot"),
+                    classAnnotations = emptyMap(),
+                    referencedMethods = emptySet(),
+                    referencedFields = emptySet(),
+                    referencedClasses = setOf("javax/swing/JComponent"),
+                    classParents = mapOf("sample/StatusDot" to setOf("javax/swing/JComponent"))
+                ),
+                ResourceModel(emptySet(), emptySet())
+            )
+
+            assertTrue(paintComponent !in analysis.deadMethods)
+        } finally {
+            projectDirectory.deleteRecursively()
+        }
+    }
 }

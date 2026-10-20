@@ -8,7 +8,11 @@ import io.github.arya458.model.DeadCodeModel
 import io.github.arya458.model.ref.FieldRef
 import io.github.arya458.model.ref.MethodRef
 import org.objectweb.asm.Opcodes
+import org.objectweb.asm.Type
 import org.gradle.api.Project
+import java.lang.reflect.Method
+import java.lang.reflect.Modifier
+import java.net.URLClassLoader
 import java.util.regex.Pattern
 
 class DeadCodeAnalyzer(
@@ -19,6 +23,9 @@ class DeadCodeAnalyzer(
     private val platformRules: PlatformKeepRules by lazy {
         detectPlatformRules()
     }
+
+    private val externalOverrideCache = mutableMapOf<MethodRef, Boolean>()
+    private val projectClassLoader: ClassLoader by lazy { createProjectClassLoader() }
 
     private val kotlinGeneratedMethodPatterns = listOf(
         Regex("component\\d+"),
@@ -65,6 +72,7 @@ class DeadCodeAnalyzer(
             if (hasKeepAnnotation(method.annotations)) return@filter false
             if (platformRules.shouldKeepMethod(method, classAnnotations)) return@filter false
             if (extension.customKeepRules("method", classAnnotations, method)) return@filter false
+            if (isExternalOverride(method, classScan)) return@filter false
 
             val directRef = allReferencedMethods.any { it.owner == method.owner && it.name == method.name && it.desc == method.desc }
             !directRef
@@ -140,6 +148,67 @@ class DeadCodeAnalyzer(
         }
         val parents = classParents[child] ?: return false
         return parent in parents || parents.any { isSubtypeOf(it, parent, classParents, visited) }
+    }
+
+    private fun isExternalOverride(method: MethodRef, classScan: ClassScanModel): Boolean {
+        return externalOverrideCache.getOrPut(method) {
+            val parents = classScan.classParents[method.owner].orEmpty()
+            parents.any { parent ->
+                if (parent in classScan.declaredClasses) {
+                    false
+                } else {
+                    hasExternalMethod(parent, method.name, method.desc, mutableSetOf())
+                }
+            }
+        }
+    }
+
+    private fun hasExternalMethod(
+        className: String,
+        methodName: String,
+        descriptor: String,
+        visited: MutableSet<String>
+    ): Boolean {
+        if (!visited.add(className)) return false
+
+        val type = try {
+            Class.forName(className.replace('/', '.'), false, projectClassLoader)
+        } catch (_: ClassNotFoundException) {
+            return false
+        }
+
+        if (type.declaredMethods.any { method ->
+                method.name == methodName &&
+                        Type.getMethodDescriptor(method) == descriptor &&
+                        !Modifier.isPrivate(method.modifiers) &&
+                        !Modifier.isStatic(method.modifiers)
+            }) {
+            return true
+        }
+
+        type.superclass?.let { superclass ->
+            if (hasExternalMethod(superclass.name.replace('.', '/'), methodName, descriptor, visited)) {
+                return true
+            }
+        }
+        return type.interfaces.any { interfaceType ->
+            hasExternalMethod(interfaceType.name.replace('.', '/'), methodName, descriptor, visited)
+        }
+    }
+
+    private fun createProjectClassLoader(): ClassLoader {
+        val urls = project.configurations
+            .filter { it.name == "runtimeClasspath" || it.name == "compileClasspath" }
+            .flatMap { configuration ->
+                try {
+                    configuration.resolve().map { it.toURI().toURL() }
+                } catch (_: Exception) {
+                    emptyList()
+                }
+            }
+            .distinct()
+            .toTypedArray()
+        return URLClassLoader(urls, Thread.currentThread().contextClassLoader)
     }
 
     private fun matchesPackageRule(rule: Any, className: String): Boolean {
