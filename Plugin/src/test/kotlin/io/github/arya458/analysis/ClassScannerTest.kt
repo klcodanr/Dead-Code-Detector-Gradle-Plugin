@@ -33,6 +33,7 @@ class ClassScannerTest {
                 scan.referencedMethods.any {
                     it.owner == "sample/LambdaSample" && it.name == "lambdaTarget"
                 })
+            assertTrue("sample/SampleInterface" in scan.referencedClasses)
         } finally {
             projectDirectory.deleteRecursively()
         }
@@ -61,6 +62,10 @@ class ClassScannerTest {
 
                     private static void methodReferenceTarget(String value) {}
                 }
+
+                interface SampleInterface {}
+
+                class SampleImplementation implements SampleInterface {}
                 """.trimIndent())
             val compiler = ToolProvider.getSystemJavaCompiler()
                 ?: error("A JDK compiler is required for this test")

@@ -134,6 +134,8 @@ class ClassScanner(
                             return
                         }
                         declaredClasses.add(name)
+                        superName?.let(referencedClasses::add)
+                        intf?.forEach(referencedClasses::add)
                         classAnnotations.computeIfAbsent(name) { mutableSetOf() }
                     }
 
