@@ -69,6 +69,22 @@ class DeadCodeAnalyzerTest {
             )
 
             assertTrue(analysis.deadMethods.none { it == override })
+
+            val baseCallAnalysis = DeadCodeAnalyzer(project, DeadCodeDetectorExtension()).analyze(
+                ClassScanModel(
+                    declaredMethods = setOf(baseMethod),
+                    declaredFields = emptySet(),
+                    declaredClasses = setOf("sample/Base", "sample/Implementation"),
+                    classAnnotations = emptyMap(),
+                    referencedMethods = setOf(override),
+                    referencedFields = emptySet(),
+                    referencedClasses = emptySet(),
+                    classParents = mapOf("sample/Implementation" to setOf("sample/Base"))
+                ),
+                ResourceModel(emptySet(), emptySet())
+            )
+
+            assertTrue(baseCallAnalysis.deadMethods.none { it == baseMethod })
         } finally {
             projectDirectory.deleteRecursively()
         }

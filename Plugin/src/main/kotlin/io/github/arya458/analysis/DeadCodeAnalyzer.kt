@@ -115,8 +115,15 @@ class DeadCodeAnalyzer(
         val references = classScan.referencedMethods.toMutableSet()
         for (reference in classScan.referencedMethods) {
             classScan.declaredMethods
+                .filter { it.owner == reference.owner && it.name == reference.name && it.desc == reference.desc }
+                .forEach(references::add)
+            classScan.declaredMethods
                 .filter { it.name == reference.name && it.desc == reference.desc }
                 .filter { it.owner != reference.owner && isSubtypeOf(it.owner, reference.owner, classScan.classParents) }
+                .forEach(references::add)
+            classScan.declaredMethods
+                .filter { it.name == reference.name && it.desc == reference.desc }
+                .filter { it.owner != reference.owner && isSubtypeOf(reference.owner, it.owner, classScan.classParents) }
                 .forEach(references::add)
         }
         return references
