@@ -162,8 +162,23 @@ class ClassScanner(
                                 return super.visitAnnotation(desc, visible)
                             }
                             override fun visitEnd() {
-                                declaredFields.add(FieldRef(currentClass, name, desc, access, fieldAnns))
+                                declaredFields.add(
+                                    FieldRef(
+                                        currentClass,
+                                        name,
+                                        desc,
+                                        access,
+                                        fieldAnns,
+                                        value != null && isCompileTimeConstant(desc)
+                                    )
+                                )
                                 super.visitEnd()
+                            }
+
+                            private fun isCompileTimeConstant(desc: String): Boolean {
+                                return desc in setOf(
+                                    "B", "C", "D", "F", "I", "J", "S", "Z", "Ljava/lang/String;"
+                                )
                             }
                         }
                     }

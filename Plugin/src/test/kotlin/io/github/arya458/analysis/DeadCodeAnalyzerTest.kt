@@ -120,4 +120,46 @@ class DeadCodeAnalyzerTest {
             projectDirectory.deleteRecursively()
         }
     }
+
+    @Test
+    fun `compile time constants and serialization ids are not reported dead`() {
+        val projectDirectory = Files.createTempDirectory("dead-code-analyzer-test").toFile()
+        try {
+            val project = ProjectBuilder.builder().withProjectDir(projectDirectory).build()
+            val constant = FieldRef(
+                "sample/Constants",
+                "TITLE",
+                "Ljava/lang/String;",
+                access = java.lang.reflect.Modifier.PRIVATE or
+                    java.lang.reflect.Modifier.STATIC or
+                    java.lang.reflect.Modifier.FINAL,
+                compileTimeConstant = true
+            )
+            val serialVersionUid = FieldRef(
+                "sample/SerializableValue",
+                "serialVersionUID",
+                "J",
+                access = java.lang.reflect.Modifier.PRIVATE or java.lang.reflect.Modifier.STATIC
+            )
+            val ordinaryField = FieldRef("sample/Unused", "value", "Ljava/lang/Object;")
+            val analysis = DeadCodeAnalyzer(project, DeadCodeDetectorExtension()).analyze(
+                ClassScanModel(
+                    declaredMethods = emptySet(),
+                    declaredFields = setOf(constant, serialVersionUid, ordinaryField),
+                    declaredClasses = emptySet(),
+                    classAnnotations = emptyMap(),
+                    referencedMethods = emptySet(),
+                    referencedFields = emptySet(),
+                    referencedClasses = emptySet()
+                ),
+                ResourceModel(emptySet(), emptySet())
+            )
+
+            assertTrue(ordinaryField in analysis.deadFields)
+            assertTrue(constant !in analysis.deadFields)
+            assertTrue(serialVersionUid !in analysis.deadFields)
+        } finally {
+            projectDirectory.deleteRecursively()
+        }
+    }
 }

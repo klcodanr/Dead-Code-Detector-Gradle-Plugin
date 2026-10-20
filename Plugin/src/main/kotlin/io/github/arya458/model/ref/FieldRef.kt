@@ -7,5 +7,6 @@ data class FieldRef(
     val name: String,
     val desc: String,
     val access: Int = 0,
-    val annotations: Set<String> = emptySet()
+    val annotations: Set<String> = emptySet(),
+    val compileTimeConstant: Boolean = false
 ) : Serializable

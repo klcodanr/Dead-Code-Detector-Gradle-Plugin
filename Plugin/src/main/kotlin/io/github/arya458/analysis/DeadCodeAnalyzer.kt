@@ -80,6 +80,12 @@ class DeadCodeAnalyzer(
 
         val deadFields = declaredFields.filter { field ->
             if ((field.access and (Opcodes.ACC_SYNTHETIC or Opcodes.ACC_BRIDGE)) != 0) return@filter false
+            if (field.compileTimeConstant &&
+                (field.access and (Opcodes.ACC_STATIC or Opcodes.ACC_FINAL)) ==
+                    (Opcodes.ACC_STATIC or Opcodes.ACC_FINAL)) {
+                return@filter false
+            }
+            if (field.name == "serialVersionUID" && field.desc == "J") return@filter false
             if (extension.keepPublicApi && (field.access and Opcodes.ACC_PUBLIC) != 0) return@filter false
             if (extension.excludeFields.any { it.matcher(field.name).matches() }) return@filter false
             if (hasKeepAnnotation(field.annotations)) return@filter false
