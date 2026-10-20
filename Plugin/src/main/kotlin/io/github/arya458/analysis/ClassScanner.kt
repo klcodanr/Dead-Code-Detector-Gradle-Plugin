@@ -174,6 +174,16 @@ class ClassScanner(
                                 referencedClasses.add(owner)
                             }
 
+                            override fun visitInvokeDynamicInsn(
+                                name: String,
+                                desc: String,
+                                bsm: Handle,
+                                vararg bsmArgs: Any
+                            ) {
+                                addHandleReference(bsm)
+                                bsmArgs.forEach(::addConstantReference)
+                            }
+
                             override fun visitFieldInsn(op: Int, owner: String, name: String, desc: String) {
                                 referencedFields.add(FieldRef(owner, name, desc))
                                 referencedClasses.add(owner)
@@ -184,8 +194,34 @@ class ClassScanner(
                             }
 
                             override fun visitLdcInsn(value: Any) {
-                                if (value is Type) {
-                                    referencedClasses.add(value.internalName)
+                                addConstantReference(value)
+                            }
+
+                            private fun addConstantReference(value: Any?) {
+                                when (value) {
+                                    is Handle -> addHandleReference(value)
+                                    is Type -> addTypeReference(value)
+                                    is Iterable<*> -> value.forEach(::addConstantReference)
+                                    is Array<*> -> value.forEach(::addConstantReference)
+                                }
+                            }
+
+                            private fun addHandleReference(handle: Handle) {
+                                referencedClasses.add(handle.owner)
+                                if (handle.tag in Opcodes.H_GETFIELD..Opcodes.H_PUTSTATIC) {
+                                    referencedFields.add(FieldRef(handle.owner, handle.name, handle.desc))
+                                } else {
+                                    referencedMethods.add(MethodRef(handle.owner, handle.name, handle.desc))
+                                }
+                            }
+
+                            private fun addTypeReference(type: Type) {
+                                when (type.sort) {
+                                    Type.OBJECT, Type.ARRAY -> referencedClasses.add(type.internalName)
+                                    Type.METHOD -> {
+                                        type.argumentTypes.forEach(::addTypeReference)
+                                        addTypeReference(type.returnType)
+                                    }
                                 }
                             }
 

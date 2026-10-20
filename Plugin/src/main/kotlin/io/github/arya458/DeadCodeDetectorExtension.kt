@@ -33,8 +33,8 @@ open class DeadCodeDetectorExtension {
     var configDirs: List<String> = listOf("src/main/resources")
 
     // Exclusion rules
-    val excludePackages: MutableList<String> = mutableListOf()
-    val excludeClasses: MutableList<String> = mutableListOf()
+    val excludePackages: MutableList<Any> = mutableListOf()
+    val excludeClasses: MutableList<Any> = mutableListOf()
     val excludeMethods: MutableList<Pattern> = mutableListOf()
     val excludeFields: MutableList<Pattern> = mutableListOf()
 

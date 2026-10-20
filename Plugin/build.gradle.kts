@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "io.github.arya458"
-version = "0.0.10"
+version = "0.0.11-klcodanr.1"
 
 repositories {
     mavenCentral()
@@ -21,6 +21,12 @@ dependencies {
     implementation("io.github.classgraph:classgraph:4.8.181")
     // Kotlin stdlib
     implementation(kotlin("stdlib"))
+    testImplementation(kotlin("test"))
+    testImplementation(gradleTestKit())
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 gradlePlugin {

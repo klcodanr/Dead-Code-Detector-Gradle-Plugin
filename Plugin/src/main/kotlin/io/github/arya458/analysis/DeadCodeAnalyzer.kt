@@ -9,6 +9,7 @@ import io.github.arya458.model.ref.FieldRef
 import io.github.arya458.model.ref.MethodRef
 import org.objectweb.asm.Opcodes
 import org.gradle.api.Project
+import java.util.regex.Pattern
 
 class DeadCodeAnalyzer(
     private val project: Project,
@@ -76,8 +77,9 @@ class DeadCodeAnalyzer(
         }
 
         val deadClasses = declaredClasses.filter { cls ->
-            if (extension.excludePackages.any { cls.replace('/', '.').startsWith(it) }) return@filter false
-            if (extension.excludeClasses.contains(cls.replace('/', '.'))) return@filter false
+            val className = cls.replace('/', '.')
+            if (extension.excludePackages.any { matchesPackageRule(it, className) }) return@filter false
+            if (extension.excludeClasses.any { matchesRule(it, className) }) return@filter false
             if (cls == "kotlin/Metadata") return@filter false
             if (allReferencedClasses.contains(cls)) return@filter false
             if (declaredMethods.any { it.owner == cls && it.name == "main" && (it.desc == "([Ljava/lang/String;)V" || it.desc == "()V") }) return@filter false
@@ -102,6 +104,24 @@ class DeadCodeAnalyzer(
         } else emptySet()
 
         return DeadCodeModel(deadMethods, deadFields, deadClasses, deadResources)
+    }
+
+    private fun matchesPackageRule(rule: Any, className: String): Boolean {
+        return when (rule) {
+            is Pattern -> rule.matcher(className).matches()
+            is Regex -> rule.matches(className)
+            is String -> className.startsWith(rule)
+            else -> false
+        }
+    }
+
+    private fun matchesRule(rule: Any, value: String): Boolean {
+        return when (rule) {
+            is Pattern -> rule.matcher(value).matches()
+            is Regex -> rule.matches(value)
+            is String -> value == rule
+            else -> false
+        }
     }
 
     private fun detectPlatformRules(): PlatformKeepRules {
