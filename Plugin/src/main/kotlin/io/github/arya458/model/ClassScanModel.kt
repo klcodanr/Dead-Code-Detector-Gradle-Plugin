@@ -11,5 +11,6 @@ data class ClassScanModel(
     val classAnnotations: Map<String, Set<String>>,
     val referencedMethods: Set<MethodRef>,
     val referencedFields: Set<FieldRef>,
-    val referencedClasses: Set<String>
+    val referencedClasses: Set<String>,
+    val classParents: Map<String, Set<String>> = emptyMap()
 ) : Serializable

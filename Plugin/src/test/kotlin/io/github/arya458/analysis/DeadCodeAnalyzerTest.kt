@@ -46,4 +46,31 @@ class DeadCodeAnalyzerTest {
             projectDirectory.deleteRecursively()
         }
     }
+
+    @Test
+    fun `references to abstract methods keep concrete overrides`() {
+        val projectDirectory = Files.createTempDirectory("dead-code-analyzer-test").toFile()
+        try {
+            val project = ProjectBuilder.builder().withProjectDir(projectDirectory).build()
+            val baseMethod = MethodRef("sample/Base", "work", "()V")
+            val override = MethodRef("sample/Implementation", "work", "()V")
+            val analysis = DeadCodeAnalyzer(project, DeadCodeDetectorExtension()).analyze(
+                ClassScanModel(
+                    declaredMethods = setOf(baseMethod, override),
+                    declaredFields = emptySet(),
+                    declaredClasses = setOf("sample/Base", "sample/Implementation"),
+                    classAnnotations = emptyMap(),
+                    referencedMethods = setOf(baseMethod),
+                    referencedFields = emptySet(),
+                    referencedClasses = setOf("sample/Base"),
+                    classParents = mapOf("sample/Implementation" to setOf("sample/Base"))
+                ),
+                ResourceModel(emptySet(), emptySet())
+            )
+
+            assertTrue(analysis.deadMethods.none { it == override })
+        } finally {
+            projectDirectory.deleteRecursively()
+        }
+    }
 }

@@ -32,9 +32,14 @@ class DeadCodeAnalyzer(
     )
 
     fun analyze(classScan: ClassScanModel, resScan: ResourceModel): DeadCodeModel {
-        val (declaredMethods, declaredFields, declaredClasses, classAnnotations, referencedMethods, referencedFields, referencedClasses) = classScan
+        val declaredMethods = classScan.declaredMethods
+        val declaredFields = classScan.declaredFields
+        val declaredClasses = classScan.declaredClasses
+        val classAnnotations = classScan.classAnnotations
+        val referencedFields = classScan.referencedFields
+        val referencedClasses = classScan.referencedClasses
 
-        val allReferencedMethods = referencedMethods + resScan.referencedMethodsFromXml
+        val allReferencedMethods = referencedMethodsWithOverrides(classScan) + resScan.referencedMethodsFromXml
 
         val referencedResourcesFromFields = classScan.referencedFields.mapNotNull { field ->
             val owner = field.owner
@@ -104,6 +109,30 @@ class DeadCodeAnalyzer(
         } else emptySet()
 
         return DeadCodeModel(deadMethods, deadFields, deadClasses, deadResources)
+    }
+
+    private fun referencedMethodsWithOverrides(classScan: ClassScanModel): Set<MethodRef> {
+        val references = classScan.referencedMethods.toMutableSet()
+        for (reference in classScan.referencedMethods) {
+            classScan.declaredMethods
+                .filter { it.name == reference.name && it.desc == reference.desc }
+                .filter { it.owner != reference.owner && isSubtypeOf(it.owner, reference.owner, classScan.classParents) }
+                .forEach(references::add)
+        }
+        return references
+    }
+
+    private fun isSubtypeOf(
+        child: String,
+        parent: String,
+        classParents: Map<String, Set<String>>,
+        visited: MutableSet<String> = mutableSetOf()
+    ): Boolean {
+        if (!visited.add(child)) {
+            return false
+        }
+        val parents = classParents[child] ?: return false
+        return parent in parents || parents.any { isSubtypeOf(it, parent, classParents, visited) }
     }
 
     private fun matchesPackageRule(rule: Any, className: String): Boolean {

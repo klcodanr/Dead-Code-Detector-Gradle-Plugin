@@ -43,12 +43,13 @@ class ClassScanner(
         val referencedFields = ConcurrentHashMap.newKeySet<FieldRef>()
         val referencedClasses = ConcurrentHashMap.newKeySet<String>()
         val classAnnotations = ConcurrentHashMap<String, MutableSet<String>>()
+        val classParents = ConcurrentHashMap<String, MutableSet<String>>()
 
         val dirs = getClassDirectories(includeTests)
 
         dirs.forEach { dir ->
             processDirectory(dir, declaredMethods, declaredFields, declaredClasses, classAnnotations,
-                referencedMethods, referencedFields, referencedClasses, includeOnlyPackages)
+                referencedMethods, referencedFields, referencedClasses, classParents, includeOnlyPackages)
         }
 
         val result = ClassScanModel(
@@ -58,7 +59,8 @@ class ClassScanner(
             classAnnotations = classAnnotations.mapValues { it.value.toSet() },
             referencedMethods = referencedMethods.toSet(),
             referencedFields = referencedFields.toSet(),
-            referencedClasses = referencedClasses.toSet()
+            referencedClasses = referencedClasses.toSet(),
+            classParents = classParents.mapValues { it.value.toSet() }
         )
 
         // ذخیره در کش
@@ -115,6 +117,7 @@ class ClassScanner(
         referencedMethods: MutableSet<MethodRef>,
         referencedFields: MutableSet<FieldRef>,
         referencedClasses: MutableSet<String>,
+        classParents: MutableMap<String, MutableSet<String>>,
         includeOnlyPackages: List<String>
     ) {
         val classFiles = dir.walkTopDown()
@@ -136,6 +139,10 @@ class ClassScanner(
                         declaredClasses.add(name)
                         superName?.let(referencedClasses::add)
                         intf?.forEach(referencedClasses::add)
+                        classParents.computeIfAbsent(name) { ConcurrentHashMap.newKeySet() }.apply {
+                            superName?.let(::add)
+                            intf?.forEach(::add)
+                        }
                         classAnnotations.computeIfAbsent(name) { mutableSetOf() }
                     }
 
