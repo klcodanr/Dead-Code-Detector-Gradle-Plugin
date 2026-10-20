@@ -80,6 +80,7 @@ class DeadCodeAnalyzer(
 
         val deadFields = declaredFields.filter { field ->
             if ((field.access and (Opcodes.ACC_SYNTHETIC or Opcodes.ACC_BRIDGE)) != 0) return@filter false
+            if (isSerializableId(field, classScan)) return@filter false
             if (extension.excludeConstants && isConstantField(field)) {
                 return@filter false
             }
@@ -226,7 +227,25 @@ class DeadCodeAnalyzer(
     private fun isConstantField(field: FieldRef): Boolean {
         return (field.access and (Opcodes.ACC_STATIC or Opcodes.ACC_FINAL)) ==
                 (Opcodes.ACC_STATIC or Opcodes.ACC_FINAL) &&
-                (field.compileTimeConstant || (field.name == "serialVersionUID" && field.desc == "J"))
+                field.compileTimeConstant
+    }
+
+    private fun isSerializableId(field: FieldRef, classScan: ClassScanModel): Boolean {
+        return field.name == "serialVersionUID" &&
+                field.desc == "J" &&
+                isSerializableClass(field.owner, classScan)
+    }
+
+    private fun isSerializableClass(className: String, classScan: ClassScanModel): Boolean {
+        if (className == "java/io/Serializable") return true
+        if (isSubtypeOf(className, "java/io/Serializable", classScan.classParents)) return true
+
+        val type = try {
+            Class.forName(className.replace('/', '.'), false, projectClassLoader)
+        } catch (_: ClassNotFoundException) {
+            return false
+        }
+        return java.io.Serializable::class.java.isAssignableFrom(type)
     }
 
     private fun matchesRule(rule: Any, value: String): Boolean {

@@ -144,34 +144,38 @@ class DeadCodeAnalyzerTest {
                     java.lang.reflect.Modifier.FINAL
             )
             val ordinaryField = FieldRef("sample/Unused", "value", "Ljava/lang/Object;")
+            val nonSerializableId = FieldRef("sample/NonSerializableValue", "serialVersionUID", "J")
             val defaultAnalysis = DeadCodeAnalyzer(project, DeadCodeDetectorExtension()).analyze(
                 ClassScanModel(
                     declaredMethods = emptySet(),
-                    declaredFields = setOf(constant, serialVersionUid, ordinaryField),
+                    declaredFields = setOf(constant, serialVersionUid, nonSerializableId, ordinaryField),
                     declaredClasses = emptySet(),
                     classAnnotations = emptyMap(),
                     referencedMethods = emptySet(),
                     referencedFields = emptySet(),
-                    referencedClasses = emptySet()
+                    referencedClasses = emptySet(),
+                    classParents = mapOf("sample/SerializableValue" to setOf("java/io/Serializable"))
                 ),
                 ResourceModel(emptySet(), emptySet())
             )
 
             assertTrue(ordinaryField in defaultAnalysis.deadFields)
             assertTrue(constant in defaultAnalysis.deadFields)
-            assertTrue(serialVersionUid in defaultAnalysis.deadFields)
+            assertTrue(nonSerializableId in defaultAnalysis.deadFields)
+            assertTrue(serialVersionUid !in defaultAnalysis.deadFields)
 
             val extension = DeadCodeDetectorExtension()
             extension.excludeConstants = true
             val excludedAnalysis = DeadCodeAnalyzer(project, extension).analyze(
                 ClassScanModel(
                     declaredMethods = emptySet(),
-                    declaredFields = setOf(constant, serialVersionUid, ordinaryField),
+                    declaredFields = setOf(constant, serialVersionUid, nonSerializableId, ordinaryField),
                     declaredClasses = emptySet(),
                     classAnnotations = emptyMap(),
                     referencedMethods = emptySet(),
                     referencedFields = emptySet(),
-                    referencedClasses = emptySet()
+                    referencedClasses = emptySet(),
+                    classParents = mapOf("sample/SerializableValue" to setOf("java/io/Serializable"))
                 ),
                 ResourceModel(emptySet(), emptySet())
             )
@@ -179,6 +183,7 @@ class DeadCodeAnalyzerTest {
             assertTrue(ordinaryField in excludedAnalysis.deadFields)
             assertTrue(constant !in excludedAnalysis.deadFields)
             assertTrue(serialVersionUid !in excludedAnalysis.deadFields)
+            assertTrue(nonSerializableId in excludedAnalysis.deadFields)
         } finally {
             projectDirectory.deleteRecursively()
         }
